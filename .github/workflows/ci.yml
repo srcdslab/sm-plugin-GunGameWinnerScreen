@@ -25,15 +25,15 @@ jobs:
           version: ${{ matrix.sm-version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # GunGame: the companion API (GG_GetRanking, GG_OnMatchStart, ...) is on feat/modernize until
-      # srcdslab/sm-plugin-GunGame#1 is merged; switch to the default branch then.
+      # GunGame: the companion API (GG_GetRanking, GG_OnMatchStart, ...) ships with GunGame 2.0.0
+      # (srcdslab/sm-plugin-GunGame#1, merged 22/11/2026).
       - name: Fetch dependencies
         run: |
           set -euo pipefail
           mkdir -p addons/sourcemod/scripting/include
           git clone --depth=1 https://github.com/srcdslab/sm-ext-ripext.git deps/ripext
           cp -R deps/ripext/pawn/scripting/include/* addons/sourcemod/scripting/include/
-          git clone --depth=1 --branch feat/modernize https://github.com/srcdslab/sm-plugin-GunGame.git deps/gungame
+          git clone --depth=1 https://github.com/srcdslab/sm-plugin-GunGame.git deps/gungame
           cp deps/gungame/addons/sourcemod/scripting/include/gungame*.inc addons/sourcemod/scripting/include/
 
       - name: Build sourcemod plugin
