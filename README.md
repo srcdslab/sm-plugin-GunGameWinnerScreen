@@ -26,8 +26,9 @@ the SourceMod error log.
 | `sm_gg_winnerscreen_page_url` | `""` | Winner page opened in every player's MOTD |
 | `sm_gg_winnerscreen_server` | `css_gg` | Server key sent in the push |
 | `sm_gg_winnerscreen_timeout` | `5` | Seconds before the push is given up |
+| `sm_gg_winnerscreen_delay` | `3` | Seconds after the win before the screen opens (push time included), so the match end fireworks are seen first |
 
-Keep `mp_chattime` long enough for players to read the screen before the next map loads.
+Keep `mp_chattime` long enough for players to read the screen before the next map loads (it opens `sm_gg_winnerscreen_delay` seconds after the win).
 
 ## Payload
 
