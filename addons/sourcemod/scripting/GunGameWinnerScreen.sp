@@ -5,7 +5,7 @@
 #include <ripext>
 #include <gungame>
 
-#define PLUGIN_VERSION "1.0.0"
+#define PLUGIN_VERSION "1.0.1"
 
 // Limits of the winner page push contract (README)
 #define MAX_RANKING 16
@@ -17,6 +17,9 @@ ConVar g_cvPushToken;
 ConVar g_cvPageUrl;
 ConVar g_cvServer;
 ConVar g_cvTimeout;
+ConVar g_cvDelay;
+
+float g_fWinTime;
 
 int g_iMatchStart;
 int g_iMatchSerial;
@@ -43,6 +46,7 @@ public void OnPluginStart()
 	g_cvPageUrl = CreateConVar("sm_gg_winnerscreen_page_url", "", "Winner page opened in the MOTD of every player once the push succeeded");
 	g_cvServer = CreateConVar("sm_gg_winnerscreen_server", "css_gg", "Server key sent in the push", _);
 	g_cvTimeout = CreateConVar("sm_gg_winnerscreen_timeout", "5", "Seconds before the push is given up (the screen is not opened then)", _, true, 1.0, true, 30.0);
+	g_cvDelay = CreateConVar("sm_gg_winnerscreen_delay", "3", "Seconds after the win before the screen opens, so players see the match end fireworks first (counted from the win, the push time included)", _, true, 0.0, true, 15.0);
 	AutoExecConfig(true);
 
 	HookEvent("player_death", Event_PlayerDeath);
@@ -107,6 +111,8 @@ public void GG_OnWinner(int client, const char[] Weapon, int victim)
 {
 	if (!g_cvEnable.BoolValue)
 		return;
+
+	g_fWinTime = GetGameTime();
 
 	char sUrl[512], sToken[256];
 	g_cvPushUrl.GetString(sUrl, sizeof(sUrl));
@@ -226,7 +232,22 @@ public void OnPushed(HTTPResponse response, any serial, const char[] error)
 	if (serial != g_iMatchSerial)
 		return;
 
-	OpenWinnerScreen();
+	// The MOTD covers the screen: wait until the fireworks of the win had their moment
+	float fWait = g_cvDelay.FloatValue - (GetGameTime() - g_fWinTime);
+	if (fWait <= 0.0)
+	{
+		OpenWinnerScreen();
+		return;
+	}
+
+	CreateTimer(fWait, Timer_OpenWinnerScreen, serial, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Timer_OpenWinnerScreen(Handle timer, any serial)
+{
+	if (serial == g_iMatchSerial)
+		OpenWinnerScreen();
+	return Plugin_Stop;
 }
 
 /* ---------------------------------------------------------------------------------------------- */
