@@ -5,7 +5,7 @@
 #include <ripext>
 #include <gungame>
 
-#define PLUGIN_VERSION "1.0.1"
+#define PLUGIN_VERSION "1.0.2"
 
 // Limits of the winner page push contract (README)
 #define MAX_RANKING 16
@@ -211,7 +211,8 @@ void GetSteamID64(int client, char[] sBuffer, int iMaxLen)
 	}
 }
 
-// Display name without the workshop path, as the page accepts it (^[A-Za-z0-9_-]{1,64}$)
+// Display name without the workshop path. The page accepts ^[A-Za-z0-9_+.-]{1,64}$ since 27/11/2026: before,
+// gg_sinnlos1+1_xg made every push of that map fail with HTTP 400.
 void GetMapName(char[] sMap, int iMaxLen)
 {
 	char sPath[PLATFORM_MAX_PATH];
@@ -224,7 +225,10 @@ public void OnPushed(HTTPResponse response, any serial, const char[] error)
 {
 	if (response.Status != HTTPStatus_OK)
 	{
-		LogError("Winner push failed: HTTP %d %s", response.Status, error);
+		// The page names the refused field in "error" (never its value): log it, a bare "HTTP 400" says nothing
+		char sReason[256];
+		GetResponseError(response, sReason, sizeof(sReason));
+		LogError("Winner push failed: HTTP %d %s%s", response.Status, error, sReason);
 		return;
 	}
 
@@ -241,6 +245,20 @@ public void OnPushed(HTTPResponse response, any serial, const char[] error)
 	}
 
 	CreateTimer(fWait, Timer_OpenWinnerScreen, serial, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+void GetResponseError(HTTPResponse response, char[] sBuffer, int iMaxLen)
+{
+	sBuffer[0] = '\0';
+
+	// Not JSON (proxy error page, timeout): no data
+	JSONObject data = view_as<JSONObject>(response.Data);
+	if (data == null || !data.HasKey("error"))
+		return;
+
+	char sError[200];
+	if (data.GetString("error", sError, sizeof(sError)))
+		FormatEx(sBuffer, iMaxLen, "(%s)", sError);
 }
 
 public Action Timer_OpenWinnerScreen(Handle timer, any serial)
@@ -266,6 +284,11 @@ void OpenWinnerScreen()
 	if (!IsSafeMapName(sMap))
 		sMap[0] = '\0';
 
+	// "+" reads as a space in a query string
+	char sMapQuery[PLATFORM_MAX_PATH * 3];
+	strcopy(sMapQuery, sizeof(sMapQuery), sMap);
+	ReplaceString(sMapQuery, sizeof(sMapQuery), "+", "%2B");
+
 	char sSteamID[32], sUrl[768];
 	int iTime = GetTime();
 	for (int client = 1; client <= MaxClients; client++)
@@ -275,7 +298,7 @@ void OpenWinnerScreen()
 
 		GetSteamID64(client, sSteamID, sizeof(sSteamID));
 		// t: changes for every match so the in-game browser never shows a cached older screen
-		FormatEx(sUrl, sizeof(sUrl), "%s%ss=%s&m=%s&t=%d", sPage, StrContains(sPage, "?") == -1 ? "?" : "&", sSteamID, sMap, iTime);
+		FormatEx(sUrl, sizeof(sUrl), "%s%ss=%s&m=%s&t=%d", sPage, StrContains(sPage, "?") == -1 ? "?" : "&", sSteamID, sMapQuery, iTime);
 		ShowMOTDPanel(client, "GunGame winner", sUrl, MOTDPANEL_TYPE_URL);
 	}
 }
@@ -288,7 +311,7 @@ bool IsSafeMapName(const char[] sMap)
 
 	for (int i = 0; i < iLen; i++)
 	{
-		if (!IsCharAlpha(sMap[i]) && !IsCharNumeric(sMap[i]) && sMap[i] != '_' && sMap[i] != '-')
+		if (!IsCharAlpha(sMap[i]) && !IsCharNumeric(sMap[i]) && sMap[i] != '_' && sMap[i] != '-' && sMap[i] != '+' && sMap[i] != '.')
 			return false;
 	}
 
