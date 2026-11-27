@@ -5,7 +5,7 @@
 1. POSTs the match result as JSON to a web endpoint (HTTPS, `Authorization: Bearer <token>`), through
    [REST in Pawn](https://github.com/srcdslab/sm-ext-ripext);
 2. once the endpoint answered `200`, opens the winner page in the MOTD panel of every human player:
-   `<page_url>?s=<viewer SteamID64>&m=<map>`.
+   `<page_url>?s=<viewer SteamID64>&m=<map>` (`+` in the map name sent as `%2B`).
 
 If the push fails (timeout, HTTP error), the screen is not opened, so players never see an older match. Errors go to
 the SourceMod error log.
